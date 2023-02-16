@@ -4,3 +4,5 @@ cmake_install*
 CMakeFiles
 app
 *.db
+config.h
+*.a

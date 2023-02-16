@@ -1,0 +1,6 @@
+CMakeCache*
+MakeFile
+cmake_install*
+CMakeFiles
+app
+*.db

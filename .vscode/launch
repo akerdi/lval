@@ -1,0 +1,14 @@
+{
+    "version": "1.0.0",
+    "configurations": [
+        {
+            "name": "Launch",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/app",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "CMake Build"
+        }
+    ]
+}

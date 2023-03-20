@@ -6,7 +6,16 @@ using namespace std;
 #include "lval.h"
 
 #define NewLval Lval* lval = new Lval
-#define Lval_Assert(x, ...) a
+#define LVAL_ASSERT(x, ...) if (!(x)) { Lval& err = Lval::lval_err(__VA_ARGS__); lval_delete(); return err; }
+#define LVAL_ASSERT_NUM(func, x, expect) LVAL_ASSERT(x.cells->size() == expect, \
+    "Function '%s', Pass Invalid Count of Args. Expect %d, Got %d", func, expect, x.cells->size() \
+    )
+#define LVAL_ASSERT_TYPE(func, x, index, expect) LVAL_ASSERT(expect == x.cells->at(index)->type, \
+    "Function '%s', Pass Invalid Type. Expect %s, Got %s", func, Lval::lval_type2name(expect), Lval::lval_type2name(x.cells->at(index)->type) \
+    )
+#define LVAL_ASSERT_NOT_EMPTY(func, x, index) LVAL_ASSERT(0 != x.cells->at(index)->cells->size(), \
+    "Function '%s', Pass '{}'.", func \
+    )
 
 #pragma mark - Methods
 
@@ -60,6 +69,73 @@ Lval& Lval::buildin_op(Lval& sym) {
     lval_delete();
     return *x;
 }
+Lval& Lval::buildin_head() {
+    LVAL_ASSERT_NUM("head", (*this), 1);
+    LVAL_ASSERT_TYPE("head", (*this), 0, LVAL_TYPE_QEXPR);
+    LVAL_ASSERT_NOT_EMPTY("head", (*this), 0);
+
+    Lval& node = lval_take(0);
+    this->lval_delete();
+
+    Lval& res = node.lval_take(0);
+    node.lval_delete();
+
+    return res;
+}
+Lval& Lval::buildin_tail() {
+    LVAL_ASSERT_NUM("tail", (*this), 1);
+    LVAL_ASSERT_TYPE("tail", (*this), 0, LVAL_TYPE_QEXPR);
+    LVAL_ASSERT_NOT_EMPTY("tail", (*this), 0);
+
+    Lval& node = lval_take(0);
+    this->lval_delete();
+
+    Lval& res = node.lval_pop(0);
+    res.lval_delete();
+
+    return node;
+}
+Lval& Lval::buildin_list() {
+    type = LVAL_TYPE_QEXPR;
+    return *this;
+}
+Lval& Lval::buildin_eval() {
+    LVAL_ASSERT_NUM("eval", (*this), 1);
+    LVAL_ASSERT_TYPE("eval", (*this), 0, LVAL_TYPE_QEXPR);
+    LVAL_ASSERT_NOT_EMPTY("eval", (*this), 0);
+
+    Lval& node = lval_take(0);
+    this->lval_delete();
+
+    node.type = LVAL_TYPE_SEXPR;
+    return node.lval_eval();
+}
+Lval& Lval::buildin_concat() {
+    LVAL_ASSERT_NUM("concat", (*this), 2);
+    LVAL_ASSERT_TYPE("concat", (*this), 0, LVAL_TYPE_QEXPR);
+    LVAL_ASSERT_TYPE("concat", (*this), 1, LVAL_TYPE_QEXPR);
+
+    Lval& qexprX = lval_pop(0);
+    Lval& qexprY = lval_pop(0);
+    this->lval_delete();
+    while (qexprY.cells->size()) {
+        Lval& a = qexprY.lval_pop(0);
+        qexprX.lval_add(a);
+    }
+    qexprY.lval_delete();
+
+    return qexprX;
+}
+Lval& Lval::buildin(Lval& sym) {
+    if ("head" == sym.symbol) return buildin_head();
+    if ("tail" == sym.symbol) return buildin_tail();
+    if ("list" == sym.symbol) return buildin_list();
+    if ("eval" == sym.symbol) return buildin_eval();
+    if ("concat" == sym.symbol) return buildin_concat();
+    if (strstr("+-*/", sym.symbol.c_str())) return buildin_op(sym);
+
+    return Lval::lval_err("Unknown Function: %s", sym.symbol.c_str());
+}
 
 Lval& Lval::lval_expr_eval() {
     Lvalv::iterator it;
@@ -90,7 +166,7 @@ Lval& Lval::lval_expr_eval() {
         sym.lval_delete();
         return err;
     }
-    Lval& res = buildin_op(sym);
+    Lval& res = buildin(sym);
     sym.lval_delete();
 
     return res;

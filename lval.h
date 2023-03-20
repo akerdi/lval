@@ -22,11 +22,16 @@ public:
     int num;
     Lvalv* cells;
 
-    Lval& lval_add(Lval& a);
-    Lval& lval_pop(uint32_t index);
-    Lval& lval_take(uint32_t index);
+    Lval& lval_add(Lval&);
+    Lval& lval_pop(uint32_t);
+    Lval& lval_take(uint32_t);
     Lval& lval_eval();
-    Lval& buildin_op(Lval& sym);
+    Lval& buildin(Lval&);
+    Lval& buildin_head();
+    Lval& buildin_tail();
+    Lval& buildin_list();
+    Lval& buildin_eval();
+    Lval& buildin_concat();
     void lval_println();
     void lval_delete();
 
@@ -40,10 +45,11 @@ private:
     Lval() {};
     ~Lval() {};
 
-    static char* lval_type2name(LVAL_TYPE type);
+    Lval& buildin_op(Lval&);
+    static char* lval_type2name(LVAL_TYPE);
     Lval& lval_expr_eval();
 
     void lval_print();
-    void lval_expr_print(char open, char close);
+    void lval_expr_print(char, char);
     void lval_expr_delete();
 };

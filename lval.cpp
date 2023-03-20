@@ -1,4 +1,4 @@
-
+#include <iostream>
 using namespace std;
 
 #include <errno.h>
@@ -6,36 +6,9 @@ using namespace std;
 #include "lval.h"
 
 #define NewLval Lval* lval = new Lval
+#define Lval_Assert(x, ...) a
 
-Lval& Lval::lval_err(string err) {
-    NewLval;
-    lval->type = LVAL_TYPE_ERR;
-    lval->error = err;
-    return *lval;
-}
-Lval& Lval::lval_sym(string sym) {
-    NewLval;
-    lval->type = LVAL_TYPE_SYM;
-    lval->symbol = sym;
-    return *lval;
-}
-Lval& Lval::lval_check_num(std::string numStr) {
-    errno = 0;
-    int num = strtol(numStr.c_str(), NULL, 10);
-    return errno > 0 ? lval_err("Invalid number!") : lval_num(num);
-}
-Lval& Lval::lval_num(int num) {
-    NewLval;
-    lval->type = LVAL_TYPE_NUM;
-    lval->num = num;
-    return *lval;
-}
-Lval& Lval::lval_sexpr(void) {
-    NewLval;
-    lval->type = LVAL_TYPE_SEXPR;
-    lval->cells = new Lvalv;
-    return *lval;
-}
+#pragma mark - Methods
 
 Lval& Lval::lval_add(Lval& a) {
     this->cells->push_back(&a);
@@ -55,8 +28,13 @@ Lval& Lval::lval_take(uint32_t index) {
 Lval& Lval::buildin_op(Lval& sym) {
     for (Lvalv::iterator it = cells->begin(); it != cells->end(); it++) {
         if (LVAL_TYPE_NUM != (*it)->type) {
-            lval_delete();
-            return Lval::lval_err("Operation must be a number!");
+            Lval& err = Lval::lval_err(
+                "Operation must be number! Expect %s, got %s!",
+                Lval::lval_type2name(LVAL_TYPE_NUM),
+                Lval::lval_type2name((*it)->type)
+            );
+            this->lval_delete();
+            return err;
         }
     }
     Lval* x = &lval_pop(0);
@@ -103,8 +81,14 @@ Lval& Lval::lval_expr_eval() {
     if (cells->size() == 1) return lval_take(0);
     Lval& sym = lval_pop(0);
     if (LVAL_TYPE_SYM != sym.type) {
+        Lval& err = lval_err(
+            "SExpr must start by a symbol! Expect %s, got %s",
+                Lval::lval_type2name(LVAL_TYPE_SYM),
+                Lval::lval_type2name(sym.type)
+            );
         this->lval_delete();
-        return lval_err("Operation must start by a symbol!");
+        sym.lval_delete();
+        return err;
     }
     Lval& res = buildin_op(sym);
     sym.lval_delete();
@@ -145,6 +129,9 @@ void Lval::lval_print() {
         case LVAL_TYPE_SEXPR: {
             return lval_expr_print('(', ')');
         }
+        case LVAL_TYPE_QEXPR: {
+            return lval_expr_print('{', '}');
+        }
     }
 }
 void Lval::lval_println() {
@@ -162,6 +149,7 @@ void Lval::lval_expr_delete() {
 }
 void Lval::lval_delete() {
     switch (type) {
+        case LVAL_TYPE_QEXPR:
         case LVAL_TYPE_SEXPR:
             return lval_expr_delete();
         case LVAL_TYPE_ERR:
@@ -170,4 +158,59 @@ void Lval::lval_delete() {
             break;
     }
     delete this;
+}
+
+#pragma mark - Static
+
+Lval& Lval::lval_err(string fmt, ...) {
+    NewLval;
+    lval->type = LVAL_TYPE_ERR;
+    static char buf[255] = {'\0'};
+    va_list ap;
+    va_start(ap, fmt);
+    vsprintf(buf, fmt.c_str(), ap);
+    va_end(ap);
+    lval->error = string(buf);
+
+    return *lval;
+}
+Lval& Lval::lval_sym(string sym) {
+    NewLval;
+    lval->type = LVAL_TYPE_SYM;
+    lval->symbol = sym;
+    return *lval;
+}
+Lval& Lval::lval_check_num(std::string numStr) {
+    errno = 0;
+    int num = strtol(numStr.c_str(), NULL, 10);
+    return errno > 0 ? lval_err("Invalid number: %s", strerror(errno)) : lval_num(num);
+}
+Lval& Lval::lval_num(int num) {
+    NewLval;
+    lval->type = LVAL_TYPE_NUM;
+    lval->num = num;
+    return *lval;
+}
+Lval& Lval::lval_sexpr(void) {
+    NewLval;
+    lval->type = LVAL_TYPE_SEXPR;
+    lval->cells = new Lvalv;
+    return *lval;
+}
+Lval& Lval::lval_qexpr(void) {
+    NewLval;
+    lval->type = LVAL_TYPE_QEXPR;
+    lval->cells = new Lvalv;
+    return *lval;
+}
+
+char* Lval::lval_type2name(LVAL_TYPE type) {
+    switch (type) {
+        case LVAL_TYPE_ERR: return "Error";
+        case LVAL_TYPE_NUM: return "Number";
+        case LVAL_TYPE_SYM: return "Symbol";
+        case LVAL_TYPE_SEXPR: return "SEXPR";
+        case LVAL_TYPE_QEXPR: return "QEXPR";
+        default: "Unknown Type: " + type;
+    }
 }

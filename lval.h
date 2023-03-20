@@ -8,6 +8,7 @@ typedef enum {
     LVAL_TYPE_NUM,
     LVAL_TYPE_SYM,
     LVAL_TYPE_SEXPR,
+    LVAL_TYPE_QEXPR,
 } LVAL_TYPE;
 
 class Lval;
@@ -29,15 +30,17 @@ public:
     void lval_println();
     void lval_delete();
 
-    static Lval& lval_err(std::string);
+    static Lval& lval_err(std::string, ...);
     static Lval& lval_sym(std::string);
     static Lval& lval_check_num(std::string);
     static Lval& lval_num(int);
     static Lval& lval_sexpr(void);
+    static Lval& lval_qexpr(void);
 private:
     Lval() {};
     ~Lval() {};
 
+    static char* lval_type2name(LVAL_TYPE type);
     Lval& lval_expr_eval();
 
     void lval_print();

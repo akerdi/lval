@@ -20,6 +20,7 @@ Lval& readAst2Lval(AStruct& t) {
     Lval *x;
     if (Ast_Type_Program == t.type) x = &Lval::lval_sexpr();
     else if (Ast_Type_SExpr == t.type) x = &Lval::lval_sexpr();
+    else if (Ast_Type_QExpr == t.type) x = &Lval::lval_qexpr();
 
     for (ASTptrVector::iterator it = t.children->begin(); it != t.children->end(); it++) {
         AStruct *child_t = *it;

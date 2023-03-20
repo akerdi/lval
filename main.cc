@@ -40,11 +40,12 @@ int main(int argc, char** argv) {
         string input;
         readline(input);
         AStruct &program = AKCompiler::compiler(input);
-        // program.print();
         Lval& expr = readAst2Lval(program);
         program.deleteNode();
-        expr.lval_println();
-        expr.lval_delete();
+
+        Lval& res = expr.lval_eval();
+        res.lval_println();
+        res.lval_delete();
     }
 #else
     printf("not implement compiler yet!\n");

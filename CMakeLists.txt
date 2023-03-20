@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project(app)
 
 set(APP_VERSION_MAJOR 1)
-set(APP_VERSION_MINOR 0)
+set(APP_VERSION_MINOR 1)
 
 option(USE_MY_COMPILER
     "Use Provided compiler implementation" OFF)

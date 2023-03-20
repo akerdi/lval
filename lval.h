@@ -18,21 +18,28 @@ public:
     LVAL_TYPE type;
     std::string error;
     std::string symbol;
-    uint32_t num;
+    int num;
     Lvalv* cells;
 
     Lval& lval_add(Lval& a);
+    Lval& lval_pop(uint32_t index);
+    Lval& lval_take(uint32_t index);
+    Lval& lval_eval();
+    Lval& buildin_op(Lval& sym);
     void lval_println();
     void lval_delete();
 
     static Lval& lval_err(std::string);
     static Lval& lval_sym(std::string);
     static Lval& lval_check_num(std::string);
-    static Lval& lval_num(uint32_t);
+    static Lval& lval_num(int);
     static Lval& lval_sexpr(void);
 private:
     Lval() {};
     ~Lval() {};
+
+    Lval& lval_expr_eval();
+
     void lval_print();
     void lval_expr_print(char open, char close);
     void lval_expr_delete();

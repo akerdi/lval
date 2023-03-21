@@ -7,7 +7,7 @@ Using cpp implement lisp.
 - [ ] String/Load file
 - [ ] Order/Compare/If
 - [ ] Function
-- [ ] Env
+- [x] Env
 - [x] Q-Express
 - [x] S-Express
 - [x] AST

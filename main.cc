@@ -5,6 +5,7 @@ using namespace std;
 #include <stdio.h>
 #include "config.h"
 #include "lval.h"
+#include "lenv.h"
 
 #ifdef USE_MY_COMPILER
 #include <compiler.h>
@@ -36,6 +37,8 @@ Lval& readAst2Lval(AStruct& t) {
 int main(int argc, char** argv) {
     printf("%s VERSION: %d.%d\n", argv[0], APP_VERSION_MAJOR, APP_VERSION_MINOR);
 #ifdef USE_MY_COMPILER
+    Lenv& env = Lenv::New_Lenv();
+    env.init_buildins();
     while (true) {
         cout << "> ";
         string input;
@@ -44,10 +47,12 @@ int main(int argc, char** argv) {
         Lval& expr = readAst2Lval(program);
         program.deleteNode();
 
-        Lval& res = expr.lval_eval();
+        Lval& res = expr.lval_eval(env);
+
         res.lval_println();
         res.lval_delete();
     }
+    env.lenv_delete();
 #else
     printf("not implement compiler yet!\n");
     return 1;

@@ -172,8 +172,7 @@ Lval& Lval::buildin_var(Lenv& env, Lval& expr, string op) {
     Lval* qexpr = expr.cells->at(0);
     Lval::Lvalv::iterator qit = qexpr->cells->begin();
     for (int i = 0; i < qexpr->cells->size(); i++) {
-        qit += i;
-        Lval* node = *qit;
+        Lval* node = *(qit+i);
         if (LVAL_TYPE_SYM != node->type) {
             Lval& err = Lval::lval_err("Function '%s' pass invalid type within args: %s. at index %d.", op.c_str(), Lval::lval_type2name(node->type), i);
             expr.lval_delete();
@@ -191,10 +190,8 @@ Lval& Lval::buildin_var(Lenv& env, Lval& expr, string op) {
     qit = qexpr->cells->begin();
     Lval::Lvalv::iterator sit = expr.cells->begin()+1;
     for (int i = 0; i < qexpr->cells->size(); i++) {
-        qit += i;
-        sit += i;
-        Lval* keyVal = *qit;
-        Lval& valVal = (*sit)->lval_copy();
+        Lval* keyVal = *(qit+i);
+        Lval& valVal = (*(sit+i))->lval_copy();
         env.lenv_def(keyVal->symbol, valVal);
     }
     expr.lval_delete();

@@ -8,14 +8,14 @@ using namespace std;
 #include "lenv.h"
 
 #define NewLval Lval* lval = new Lval
-#define LVAL_ASSERT(x, ...) if (!(x)) { Lval& err = Lval::lval_err(__VA_ARGS__); lval_delete(); return err; }
-#define LVAL_ASSERT_NUM(func, x, expect) LVAL_ASSERT(x.cells->size() == expect, \
+#define LVAL_ASSERT(x, that, ...) if (!(x)) { Lval& err = Lval::lval_err(__VA_ARGS__); that.lval_delete(); return err; }
+#define LVAL_ASSERT_NUM(func, x, expect) LVAL_ASSERT(x.cells->size() == expect, x, \
     "Function '%s', Pass Invalid Count of Args. Expect %d, Got %d", func, expect, x.cells->size() \
     )
-#define LVAL_ASSERT_TYPE(func, x, index, expect) LVAL_ASSERT(expect == x.cells->at(index)->type, \
+#define LVAL_ASSERT_TYPE(func, x, index, expect) LVAL_ASSERT(expect == x.cells->at(index)->type, x, \
     "Function '%s', Pass Invalid Type. Expect %s, Got %s", func, Lval::lval_type2name(expect), Lval::lval_type2name(x.cells->at(index)->type) \
     )
-#define LVAL_ASSERT_NOT_EMPTY(func, x, index) LVAL_ASSERT(0 != x.cells->at(index)->cells->size(), \
+#define LVAL_ASSERT_NOT_EMPTY(func, x, index) LVAL_ASSERT(0 != x.cells->at(index)->cells->size(), x, \
     "Function '%s', Pass '{}'.", func \
     )
 
@@ -165,6 +165,44 @@ Lval& Lval::buildin_mul(Lenv& env, Lval& expr) {
 }
 Lval& Lval::buildin_div(Lenv& env, Lval& expr) {
     return expr.buildin_op(env, "/");
+}
+Lval& Lval::buildin_var(Lenv& env, Lval& expr, string op) {
+    LVAL_ASSERT_TYPE(op.c_str(), (expr), 0, LVAL_TYPE_QEXPR);
+    LVAL_ASSERT_NOT_EMPTY(op.c_str(), (expr), 0);
+    Lval* qexpr = expr.cells->at(0);
+    Lval::Lvalv::iterator qit = qexpr->cells->begin();
+    for (int i = 0; i < qexpr->cells->size(); i++) {
+        qit += i;
+        Lval* node = *qit;
+        if (LVAL_TYPE_SYM != node->type) {
+            Lval& err = Lval::lval_err("Function '%s' pass invalid type within args: %s. at index %d.", op.c_str(), Lval::lval_type2name(node->type), i);
+            expr.lval_delete();
+            return err;
+        }
+    }
+    LVAL_ASSERT((
+        qexpr->cells->size() == (expr.cells->size()-1)),
+        expr,
+        "Function '%s' pass count of args not equal to vals. Args: %d, Vals: %d.",
+        op.c_str(),
+        qexpr->cells->size(),
+        (expr.cells->size()-1));
+
+    qit = qexpr->cells->begin();
+    Lval::Lvalv::iterator sit = expr.cells->begin()+1;
+    for (int i = 0; i < qexpr->cells->size(); i++) {
+        qit += i;
+        sit += i;
+        Lval* keyVal = *qit;
+        Lval& valVal = (*sit)->lval_copy();
+        env.lenv_def(keyVal->symbol, valVal);
+    }
+    expr.lval_delete();
+
+    return Lval::lval_sexpr();
+}
+Lval& Lval::buildin_def(Lenv& env, Lval& expr) {
+    return buildin_var(env, (expr), "def");
 }
 Lval& Lval::lval_expr_eval(Lenv& env) {
     Lvalv::iterator it;

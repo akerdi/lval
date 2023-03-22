@@ -17,7 +17,6 @@ Lval& Lenv::lenv_get(Lval& keyVal) {
     }
     return Lval::lval_err("Unbound Function for %s", keyVal.symbol.c_str());
 }
-
 void Lenv::lenv_def(string key, Lval& val) {
     Lval_map::iterator pos = buildins->find(key);
     if (pos != buildins->end()) {
@@ -46,8 +45,8 @@ void Lenv::init_buildins() {
     buildin_funcs("list", &Lval::buildin_list);
     buildin_funcs("eval", &Lval::buildin_eval);
     buildin_funcs("concat", &Lval::buildin_concat);
+    buildin_funcs("def", &Lval::buildin_def);
     Lval& funcVal = Lval::lval_func();
-
 }
 void Lenv::lenv_delete() {
     if (buildins) {

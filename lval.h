@@ -38,6 +38,7 @@ public:
     Lval& buildin_sub(Lenv&, Lval&);
     Lval& buildin_mul(Lenv&, Lval&);
     Lval& buildin_div(Lenv&, Lval&);
+    Lval& buildin_def(Lenv&, Lval&);
     void lval_println();
     void lval_delete();
 
@@ -53,6 +54,7 @@ private:
     ~Lval() {};
 
     Lval& buildin_op(Lenv&, string);
+    Lval& buildin_var(Lenv&, Lval&, string);
     static char* lval_type2name(LVAL_TYPE);
     Lval& lval_expr_eval(Lenv&);
 

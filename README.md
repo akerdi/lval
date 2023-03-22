@@ -6,13 +6,17 @@ Using cpp implement lisp.
 - [ ] Library
 - [ ] String/Load file
 - [ ] Order/Compare/If
-- [ ] Function
+- [x] Function
 - [x] Env
 - [x] Q-Express
 - [x] S-Express
 - [x] AST
 - [x] REPL
 - [x] init
+
+## TODO
+
+- [ ] Lval.cell use deque instead
 
 ## Contact me
 Feel free to contact me if you have any trouble on this project:

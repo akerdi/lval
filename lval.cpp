@@ -1,5 +1,4 @@
 #include <iostream>
-#include <algorithm>
 using namespace std;
 
 #include <errno.h>
@@ -35,31 +34,44 @@ Lval& Lval::lval_take(uint32_t index) {
     cells->clear();
     return node;
 }
-Lval& Lval::lval_copy() {
-    NewLval;
-    lval->type = type;
-    switch (lval->type) {
+Lval& lval_fast_copy(const Lval& from, Lval& to) {
+    to.type = from.type;
+    switch (to.type) {
         case LVAL_TYPE_NUM:
-            lval->num = num;
+            to.num = from.num;
             break;
         case LVAL_TYPE_ERR:
-            lval->error = error;
+            to.error = from.error;
             break;
         case LVAL_TYPE_SYM:
-            lval->symbol = symbol;
+            to.symbol = from.symbol;
             break;
         case LVAL_TYPE_FUNC:
-            lval->func = func;
+            if (from.func) {
+                to.func = from.func;
+            } else {
+                to.func = NULL;
+                to.formals = &from.formals->lval_copy();
+                to.body = &from.body->lval_copy();
+                to.env = &from.env->lenv_copy();
+            }
             break;
         case LVAL_TYPE_QEXPR:
         case LVAL_TYPE_SEXPR: {
-            lval->cells = new Lvalv;
-            lval->cells->resize(cells->size());
-            copy(cells->begin(), cells->end(), lval->cells->begin());
+            to.cells = new Lval::Lvalv;
+            for (Lval::Lvalv::iterator it = from.cells->begin(); it != from.cells->end(); it++) {
+                Lval& lval = Lval::lval_sym("");
+                lval_fast_copy(*(*it), lval);
+                to.lval_add(lval);
+            }
         }
             break;
     }
-    return *lval;
+    return to;
+}
+Lval& Lval::lval_copy() {
+    NewLval;
+    return lval_fast_copy(*this, *lval);
 }
 
 Lval& Lval::buildin_op(Lenv&, string op) {
@@ -193,13 +205,87 @@ Lval& Lval::buildin_var(Lenv& env, Lval& expr, string op) {
         Lval* keyVal = *(qit+i);
         Lval& valVal = (*(sit+i))->lval_copy();
         env.lenv_def(keyVal->symbol, valVal);
+        if ("def" == op) env.lenv_def(keyVal->symbol, valVal);
+        else env.lenv_put(keyVal->symbol, valVal);
     }
     expr.lval_delete();
 
     return Lval::lval_sexpr();
 }
+Lval& Lval::buildin_put(Lenv& env, Lval& expr) {
+    return buildin_var(env, (expr), "=");
+}
 Lval& Lval::buildin_def(Lenv& env, Lval& expr) {
     return buildin_var(env, (expr), "def");
+}
+Lval& Lval::buildin_lambda(Lenv& env, Lval& expr) {
+    LVAL_ASSERT_NUM("\\", expr, 2);
+    LVAL_ASSERT_TYPE("\\", expr, 0, LVAL_TYPE_QEXPR);
+    LVAL_ASSERT_TYPE("\\", expr, 1, LVAL_TYPE_QEXPR);
+
+    Lval* formals = expr.cells->at(0);
+    Lval* body = expr.cells->at(1);
+
+    Lval& lambda = Lval::lval_lambda(formals->lval_copy(), body->lval_copy());
+    expr.lval_delete();
+
+    return lambda;
+}
+Lval& Lval::lval_call(Lenv& env, Lval& op) {
+    if (op.func) {
+        // funvVal.*func is a pointer that canot run property
+        // Declare afunc type is `Lval_Func`, to prevent call a function pointer and leet to Exception
+        Lval_Func afunc = op.func;
+        return (op.*afunc)(env, *this);
+    }
+    int args_count = op.formals->cells->size();
+    int params_count = cells->size();
+    int i = 0;
+    while (i != params_count) {
+        if (!op.formals->cells->size()) {
+            this->lval_delete();
+            return Lval::lval_err("Function '%s' pass params too much to args. Params %d, Args %d", "call", params_count, args_count);
+        }
+        Lval* keyVal = op.formals->cells->at(i);
+        if ("&" == keyVal->symbol) {
+            if (2 != args_count-i) {
+                this->lval_delete();
+                return Lval::lval_err("Function '%s' symbol '&' must follow only one symbol!", "call");
+            }
+            keyVal = op.formals->cells->at(++i);
+            Lval& qexpr = Lval::lval_qexpr();
+            Lvalv::iterator it = cells->begin() + i;
+            while (it != cells->end()) {
+                qexpr.lval_add((*it)->lval_copy());
+                it++;
+            }
+            op.env->lenv_put(keyVal->symbol, qexpr);
+            i = args_count;
+            break;
+        }
+        Lval* valVal = cells->at(i);
+        op.env->lenv_put(keyVal->symbol, valVal->lval_copy());
+        i++;
+    }
+    this->lval_delete();
+    if ((2 == args_count-i) && ("&" == op.formals->cells->at(i)->symbol)) {
+        Lval* keyVal = op.formals->cells->at(i+1);
+        Lval& emptyList = Lval::lval_qexpr();
+        op.env->lenv_put(keyVal->symbol, emptyList);
+        i = args_count;
+    }
+    // cut used args
+    Lvalv::iterator it = op.formals->cells->begin();
+    op.formals->cells->erase(it, it+i);
+    // args had fully used
+    if (i >= args_count) {
+        op.env->parent = &env;
+        Lval& sexpr = Lval::lval_sexpr();
+        sexpr.lval_add(op.body->lval_copy());
+        return buildin_eval(*op.env, sexpr);
+    }
+    // or return a copy
+    return op.lval_copy();
 }
 Lval& Lval::lval_expr_eval(Lenv& env) {
     Lvalv::iterator it;
@@ -231,10 +317,8 @@ Lval& Lval::lval_expr_eval(Lenv& env) {
         funcVal.lval_delete();
         return err;
     }
-    // funvVal.*func is a pointer that canot run property
-    // Declare afunc type is `Lval_Func`, to prevent call a function pointer and leet to Exception
-    Lval_Func afunc = funcVal.func;
-    Lval& res = (funcVal.*afunc)(env, *this);
+
+    Lval& res = lval_call(env, funcVal);
 
     funcVal.lval_delete();
 
@@ -284,7 +368,35 @@ void Lval::lval_print() {
             return lval_expr_print('{', '}');
         }
         case LVAL_TYPE_FUNC: {
-            cout << &func;
+            if (func) {
+                cout << Lval::lval_type2name(LVAL_TYPE_FUNC) << &func;
+            } else {
+                putchar('\\');
+                putchar(' ');
+                putchar('{');
+                int i, size;
+                Lvalv::iterator it;
+
+                i = 0; size = formals->cells->size(); it = formals->cells->begin();
+                for (; i < size; i++) {
+                    (*(it + i))->lval_print();
+                    if (i != (size-1)) {
+                        putchar(' ');
+                    }
+                }
+                putchar('}');
+                putchar(' ');
+                putchar('{');
+
+                i = 0; size = body->cells->size(); it = body->cells->begin();
+                for (i = 0; i < size; i++) {
+                    (*(it + i))->lval_print();
+                    if (i != (size-1)) {
+                        putchar(' ');
+                    }
+                }
+                putchar('}');
+            }
             return;
         }
     }
@@ -308,7 +420,13 @@ void Lval::lval_delete() {
         case LVAL_TYPE_SEXPR:
             return lval_expr_delete();
         case LVAL_TYPE_FUNC:
-            func = NULL;
+            if (func) {
+                func = NULL;
+            } else {
+                if (formals) formals->lval_delete();
+                if (body) body->lval_delete();
+                if (env) env->lenv_delete();
+            }
             break;
         case LVAL_TYPE_ERR:
         case LVAL_TYPE_NUM:
@@ -360,11 +478,18 @@ Lval& Lval::lval_qexpr(void) {
     lval.type = LVAL_TYPE_QEXPR;
     return lval;
 }
-Lval& Lval::lval_func(void) {
+Lval& Lval::lval_func(Lval_Func func) {
     NewLval;
     lval->type = LVAL_TYPE_FUNC;
-    lval->func = NULL;
+    lval->func = func;
     return *lval;
+}
+Lval& Lval::lval_lambda(Lval& formals, Lval& body) {
+    Lval& lval = lval_func(nullptr);
+    lval.formals = &formals;
+    lval.body = &body;
+    lval.env = &Lenv::New_Lenv();
+    return lval;
 }
 
 char* Lval::lval_type2name(LVAL_TYPE type) {

@@ -24,11 +24,16 @@ public:
     Lvalv* cells;
     Lval_Func func;
 
+    Lenv* env;
+    Lval* formals;
+    Lval* body;
+
     Lval& lval_add(Lval&);
     Lval& lval_pop(uint32_t);
     Lval& lval_take(uint32_t);
     Lval& lval_copy();
     Lval& lval_eval(Lenv&);
+    Lval& lval_call(Lenv&, Lval&);
     Lval& buildin_head(Lenv&, Lval&);
     Lval& buildin_tail(Lenv&, Lval&);
     Lval& buildin_list(Lenv&, Lval&);
@@ -38,7 +43,9 @@ public:
     Lval& buildin_sub(Lenv&, Lval&);
     Lval& buildin_mul(Lenv&, Lval&);
     Lval& buildin_div(Lenv&, Lval&);
+    Lval& buildin_put(Lenv&, Lval&);
     Lval& buildin_def(Lenv&, Lval&);
+    Lval& buildin_lambda(Lenv&, Lval&);
     void lval_println();
     void lval_delete();
 
@@ -48,11 +55,10 @@ public:
     static Lval& lval_num(int);
     static Lval& lval_sexpr(void);
     static Lval& lval_qexpr(void);
-    static Lval& lval_func(void);
-private:
-    Lval() {};
-    ~Lval() {};
+    static Lval& lval_func(Lval_Func);
+    static Lval& lval_lambda(Lval&, Lval&);
 
+private:
     Lval& buildin_op(Lenv&, string);
     Lval& buildin_var(Lenv&, Lval&, string);
     static char* lval_type2name(LVAL_TYPE);

@@ -34,6 +34,9 @@ public:
     Lval& lval_copy();
     Lval& lval_eval(Lenv&);
     Lval& lval_call(Lenv&, Lval&);
+    void lval_println();
+    void lval_delete();
+
     Lval& buildin_head(Lenv&, Lval&);
     Lval& buildin_tail(Lenv&, Lval&);
     Lval& buildin_list(Lenv&, Lval&);
@@ -46,8 +49,15 @@ public:
     Lval& buildin_put(Lenv&, Lval&);
     Lval& buildin_def(Lenv&, Lval&);
     Lval& buildin_lambda(Lenv&, Lval&);
-    void lval_println();
-    void lval_delete();
+    Lval& buildin_gt(Lenv&, Lval&);
+    Lval& buildin_gte(Lenv&, Lval&);
+    Lval& buildin_lt(Lenv&, Lval&);
+    Lval& buildin_lte(Lenv&, Lval&);
+    Lval& buildin_eq(Lenv&, Lval&);
+    Lval& buildin_neq(Lenv&, Lval&);
+    Lval& buildin_if(Lenv&, Lval&);
+
+    bool operator==(const Lval&);
 
     static Lval& lval_err(std::string, ...);
     static Lval& lval_sym(std::string);
@@ -59,12 +69,17 @@ public:
     static Lval& lval_lambda(Lval&, Lval&);
 
 private:
+    Lval& lval_expr_eval(Lenv&);
+    bool lval_compare(Lval&);
+
     Lval& buildin_op(Lenv&, string);
     Lval& buildin_var(Lenv&, Lval&, string);
-    static char* lval_type2name(LVAL_TYPE);
-    Lval& lval_expr_eval(Lenv&);
+    Lval& buildin_order(Lenv&, Lval &, const char*);
+    Lval& buildin_compare(Lenv&, Lval&, const char*);
 
     void lval_print();
     void lval_expr_print(char, char);
     void lval_expr_delete();
+
+    static char* lval_type2name(LVAL_TYPE);
 };

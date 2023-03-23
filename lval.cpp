@@ -17,23 +17,10 @@ using namespace std;
 #define LVAL_ASSERT_NOT_EMPTY(func, x, index) LVAL_ASSERT(0 != x.cells->at(index)->cells->size(), x, \
     "Function '%s', Pass '{}'.", func \
     )
+#define LVAL_FATAL_ERROR(func, msg) cout << __func__ << "::" << func << msg << endl; exit(EXIT_FAILURE);
 
-#pragma mark - Methods
+#pragma mark - Functions
 
-Lval& Lval::lval_add(Lval& a) {
-    this->cells->push_back(&a);
-    return *this;
-}
-Lval& Lval::lval_pop(uint32_t index) {
-    Lval* node = cells->at(index);
-    cells->erase(cells->begin()+index);
-    return *node;
-}
-Lval& Lval::lval_take(uint32_t index) {
-    Lval& node = lval_pop(index);
-    cells->clear();
-    return node;
-}
 Lval& lval_fast_copy(const Lval& from, Lval& to) {
     to.type = from.type;
     switch (to.type) {
@@ -69,9 +56,74 @@ Lval& lval_fast_copy(const Lval& from, Lval& to) {
     }
     return to;
 }
+
+#pragma mark - Methods
+
+Lval& Lval::lval_add(Lval& a) {
+    this->cells->push_back(&a);
+    return *this;
+}
+Lval& Lval::lval_pop(uint32_t index) {
+    Lval* node = cells->at(index);
+    cells->erase(cells->begin()+index);
+    return *node;
+}
+Lval& Lval::lval_take(uint32_t index) {
+    Lval& node = lval_pop(index);
+    cells->clear();
+    return node;
+}
 Lval& Lval::lval_copy() {
     NewLval;
     return lval_fast_copy(*this, *lval);
+}
+bool Lval::operator==(const Lval& other) {
+    if (type != other.type) return false;
+    switch (type) {
+        case LVAL_TYPE_ERR: return error == other.error;
+        case LVAL_TYPE_NUM: return num == other.num;
+        case LVAL_TYPE_SYM: return symbol == other.symbol;
+        case LVAL_TYPE_FUNC: {
+            if (func) {
+                return func == other.func;
+            } else {
+                if (formals->cells->size() != other.formals->cells->size()) return false;
+                if (body->cells->size() != other.cells->size()) return false;
+                Lvalv::iterator this_it = formals->cells->begin();
+                Lvalv::iterator other_it = other.formals->cells->begin();
+                Lval *thisObj, *otherObj;
+                for (int i = 0; i < formals->cells->size(); i++) {
+                    thisObj = *(this_it + i);
+                    otherObj = *(other_it + i);
+                    if (!(thisObj == otherObj)) return false;
+                }
+                this_it = body->cells->begin();
+                other_it = other.body->cells->begin();
+                for (int i = 0; i < body->cells->size(); i++) {
+                    thisObj = *(this_it + i);
+                    otherObj = *(other_it + i);
+                    if (!(thisObj == otherObj)) return false;
+                }
+                return true;
+            }
+        }
+        case LVAL_TYPE_QEXPR:
+        case LVAL_TYPE_SEXPR: {
+            if (cells->size() != other.cells->size()) return false;
+            Lvalv::iterator this_it = cells->begin();
+            Lvalv::iterator other_it = other.cells->begin();
+            Lval *thisObj, *otherObj;
+            for (int i = 0; i < cells->size(); i++) {
+                thisObj = *(this_it + i);
+                otherObj = *(other_it + i);
+                if (!(thisObj == otherObj)) return false;
+            }
+            return true;
+        }
+        default: {
+            LVAL_FATAL_ERROR("compare", " Unbound type: " + type);
+        }
+    }
 }
 
 Lval& Lval::buildin_op(Lenv&, string op) {
@@ -231,6 +283,84 @@ Lval& Lval::buildin_lambda(Lenv& env, Lval& expr) {
 
     return lambda;
 }
+Lval& Lval::buildin_order(Lenv& env, Lval& expr, const char* op) {
+    LVAL_ASSERT_NUM(op, expr, 2);
+    LVAL_ASSERT_TYPE(op, expr, 0, LVAL_TYPE_NUM);
+    LVAL_ASSERT_TYPE(op, expr, 1, LVAL_TYPE_NUM);
+    Lval* a = expr.cells->at(0);
+    Lval* b = expr.cells->at(1);
+    Lval* x;
+    if (">" == op) {
+        x = &Lval::lval_num(a->num > b->num ? 1 : 0);
+    } else if (">=" == op) {
+        x = &Lval::lval_num(a->num >= b->num ? 1 : 0);
+    } else if ("<" == op) {
+        x = &Lval::lval_num(a->num < b->num ? 1 : 0);
+    } else if ("<=" == op) {
+        x = &Lval::lval_num(a->num <= b->num ? 1 : 0);
+    }
+    expr.lval_delete();
+
+    return *x;
+}
+Lval& Lval::buildin_gt(Lenv& env, Lval& expr) {
+    return buildin_order(env, expr, ">");
+}
+Lval& Lval::buildin_gte(Lenv& env, Lval& expr) {
+    return buildin_order(env, expr, ">=");
+}
+Lval& Lval::buildin_lt(Lenv& env, Lval& expr) {
+    return buildin_order(env, expr, "<");
+}
+Lval& Lval::buildin_lte(Lenv& env, Lval& expr) {
+    return buildin_order(env, expr, "<=");
+}
+Lval& Lval::buildin_compare(Lenv& env, Lval& expr, const char* op) {
+    LVAL_ASSERT_NUM(op, expr, 2);
+    Lval* a = expr.cells->at(0);
+    Lval* b = expr.cells->at(1);
+    bool ret = *a == *b;
+    Lval* res;
+    if ("==" == op) {
+        res = &Lval::lval_num(ret);
+    } else if ("!=" == op) {
+        res = &Lval::lval_num(!ret);
+    } else {
+        LVAL_FATAL_ERROR(op, "Not found type: " + string(op));
+    }
+    expr.lval_delete();
+
+    return *res;
+}
+Lval& Lval::buildin_eq(Lenv& env, Lval& expr) {
+    return buildin_compare(env, expr, "==");
+}
+Lval& Lval::buildin_neq(Lenv& env, Lval& expr) {
+    return buildin_compare(env, expr, "!=");
+}
+Lval& Lval::buildin_if(Lenv& env, Lval& expr) {
+    LVAL_ASSERT_NUM("if", expr, 3);
+    LVAL_ASSERT_TYPE("if", expr, 0, LVAL_TYPE_NUM);
+    LVAL_ASSERT_TYPE("if", expr, 1, LVAL_TYPE_QEXPR);
+    LVAL_ASSERT_TYPE("if", expr, 2, LVAL_TYPE_QEXPR);
+    Lval& numVal = expr.lval_pop(0);
+    int num = numVal.num;
+    numVal.lval_delete();
+
+    expr.cells->at(0)->type = LVAL_TYPE_SEXPR;
+    expr.cells->at(1)->type = LVAL_TYPE_SEXPR;
+
+    Lval* res;
+    if (num == 0) {
+        res = &expr.lval_pop(1).lval_eval(env);
+    } else {
+        res = &expr.lval_pop(0).lval_eval(env);
+    }
+
+    expr.lval_delete();
+
+    return *res;
+}
 Lval& Lval::lval_call(Lenv& env, Lval& op) {
     if (op.func) {
         // funvVal.*func is a pointer that canot run property
@@ -369,7 +499,7 @@ void Lval::lval_print() {
         }
         case LVAL_TYPE_FUNC: {
             if (func) {
-                cout << Lval::lval_type2name(LVAL_TYPE_FUNC) << &func;
+                cout << Lval::lval_type2name(LVAL_TYPE_FUNC) << ":" << &func;
             } else {
                 putchar('\\');
                 putchar(' ');

@@ -63,6 +63,13 @@ void Lenv::init_buildins() {
     buildin_funcs("def", &Lval::buildin_def);
     buildin_funcs("=", &Lval::buildin_put);
     buildin_funcs("\\", &Lval::buildin_lambda);
+    buildin_funcs(">", &Lval::buildin_gt);
+    buildin_funcs(">=", &Lval::buildin_gte);
+    buildin_funcs("<", &Lval::buildin_lt);
+    buildin_funcs("<=", &Lval::buildin_lte);
+    buildin_funcs("==", &Lval::buildin_eq);
+    buildin_funcs("!=", &Lval::buildin_neq);
+    buildin_funcs("if", &Lval::buildin_if);
 }
 void Lenv::lenv_delete() {
     if (buildins) delete buildins; buildins = NULL;

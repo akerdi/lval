@@ -1,11 +1,11 @@
 # CPPLispy
 
-Using cpp implement lisp.
+Using cpp implete lisp.
 
 ## 目标
 - [ ] Library
 - [ ] String/Load file
-- [ ] Order/Compare/If
+- [x] Order/Compare/If
 - [x] Function
 - [x] Env
 - [x] Q-Express

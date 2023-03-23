@@ -44,6 +44,11 @@ int main(int argc, char** argv) {
         string input;
         readline(input);
         AStruct &program = AKCompiler::compiler(input);
+        if (Ast_Type_Error == program.type) {
+            program.print();
+            program.deleteNode();
+            continue;
+        }
         Lval& expr = readAst2Lval(program);
         program.deleteNode();
 

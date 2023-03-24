@@ -70,6 +70,8 @@ void Lenv::init_buildins() {
     buildin_funcs("==", &Lval::buildin_eq);
     buildin_funcs("!=", &Lval::buildin_neq);
     buildin_funcs("if", &Lval::buildin_if);
+    buildin_funcs("print", &Lval::buildin_print);
+    buildin_funcs("load", &Lval::buildin_load);
 }
 void Lenv::lenv_delete() {
     if (buildins) delete buildins; buildins = NULL;

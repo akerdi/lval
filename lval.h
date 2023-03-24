@@ -3,6 +3,12 @@
 #include <iostream>
 #include <vector>
 
+#include "config.h"
+
+#ifdef USE_MY_COMPILER
+#include <compiler.h>
+#endif
+
 typedef enum {
     LVAL_TYPE_ERR,
     LVAL_TYPE_NUM,
@@ -10,6 +16,7 @@ typedef enum {
     LVAL_TYPE_SEXPR,
     LVAL_TYPE_QEXPR,
     LVAL_TYPE_FUNC,
+    LVAL_TYPE_STR,
 } LVAL_TYPE;
 
 class Lenv;
@@ -27,6 +34,7 @@ public:
     Lenv* env;
     Lval* formals;
     Lval* body;
+    std::string str;
 
     Lval& lval_add(Lval&);
     Lval& lval_pop(uint32_t);
@@ -56,9 +64,12 @@ public:
     Lval& buildin_eq(Lenv&, Lval&);
     Lval& buildin_neq(Lenv&, Lval&);
     Lval& buildin_if(Lenv&, Lval&);
+    Lval& buildin_print(Lenv&, Lval&);
+    Lval& buildin_load(Lenv&, Lval&);
 
     bool operator==(const Lval&);
 
+    static Lval& readAst(AStruct& t);
     static Lval& lval_err(std::string, ...);
     static Lval& lval_sym(std::string);
     static Lval& lval_check_num(std::string);
@@ -67,13 +78,15 @@ public:
     static Lval& lval_qexpr(void);
     static Lval& lval_func(Lval_Func);
     static Lval& lval_lambda(Lval&, Lval&);
+    static Lval& lval_check_string(const std::string);
+    static Lval& lval_string(const std::string);
 
 private:
     Lval& lval_expr_eval(Lenv&);
     bool lval_compare(Lval&);
 
-    Lval& buildin_op(Lenv&, string);
-    Lval& buildin_var(Lenv&, Lval&, string);
+    Lval& buildin_op(Lenv&, std::string);
+    Lval& buildin_var(Lenv&, Lval&, std::string);
     Lval& buildin_order(Lenv&, Lval &, const char*);
     Lval& buildin_compare(Lenv&, Lval&, const char*);
 

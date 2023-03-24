@@ -361,6 +361,51 @@ Lval& Lval::buildin_if(Lenv& env, Lval& expr) {
 
     return *res;
 }
+Lval& Lval::buildin_print(Lenv& env, Lval& expr) {
+    Lvalv::iterator it = expr.cells->begin();
+    int cell_size = expr.cells->size();
+    for (int i = 0; i < cell_size; i++) {
+        Lval* aptr = *(it+i);
+        aptr->lval_print();
+        if (i != (cell_size-1)) {
+            putchar(' ');
+        }
+    }
+    cout << endl;
+    expr.lval_delete();
+
+    return lval_sexpr();
+}
+Lval& Lval::buildin_load(Lenv& env, Lval& expr) {
+    LVAL_ASSERT_NUM("load", expr, 1);
+    LVAL_ASSERT_TYPE("load", expr, 0, LVAL_TYPE_STR);
+
+    Lval* strVal = expr.cells->at(0);
+    AStruct& program = AKCompiler::loadfile(strVal->str);
+    expr.lval_delete();
+    if (Ast_Type_Error == program.type) {
+        program.deleteNode();
+        return Lval::lval_err(program.error);
+    } else {
+        Lval& sexpr = Lval::readAst(program);
+        program.deleteNode();
+        Lval* expr;
+        Lval* res;
+        while (sexpr.cells->size()) {
+            expr = sexpr.cells->at(0);
+            sexpr.cells->erase(sexpr.cells->begin());
+            res = &expr->lval_eval(env);
+            if (LVAL_TYPE_ERR == res->type) {
+                res->lval_print();
+                break;
+            }
+            res->lval_println();
+            res->lval_delete();
+        }
+        sexpr.lval_delete();
+    }
+    return Lval::lval_sexpr();
+}
 Lval& Lval::lval_call(Lenv& env, Lval& op) {
     if (op.func) {
         // funvVal.*func is a pointer that canot run property
@@ -491,6 +536,10 @@ void Lval::lval_print() {
             cout << symbol;
             return;
         }
+        case LVAL_TYPE_STR: {
+            cout << "\""<< str << "\"";
+            return;
+        }
         case LVAL_TYPE_SEXPR: {
             return lval_expr_print('(', ')');
         }
@@ -561,12 +610,36 @@ void Lval::lval_delete() {
         case LVAL_TYPE_ERR:
         case LVAL_TYPE_NUM:
         case LVAL_TYPE_SYM:
+        case LVAL_TYPE_STR:
+            break;
+        default:
             break;
     }
     delete this;
 }
 
 #pragma mark - Static
+
+Lval& Lval::readAst(AStruct& t) {
+    if (Ast_Type_Number == t.type) return Lval::lval_check_num(t.content);
+    if (Ast_Type_Symbol == t.type) return Lval::lval_sym(t.content);
+    if (Ast_Type_String == t.type) return Lval::lval_check_string(t.content);
+
+    Lval *x;
+    if (Ast_Type_Program == t.type) x = &Lval::lval_sexpr();
+    else if (Ast_Type_SExpr == t.type) x = &Lval::lval_sexpr();
+    else if (Ast_Type_QExpr == t.type) x = &Lval::lval_qexpr();
+
+    for (ASTptrVector::iterator it = t.children->begin(); it != t.children->end(); it++) {
+        AStruct *child_t = *it;
+        if (Ast_Type_Semi == child_t->type) continue;
+        if (Ast_type_Quote == child_t->type) continue;
+        if (Ast_Type_Comment == child_t->type) continue;
+        Lval& child = readAst(*child_t);
+        x->lval_add(child);
+    }
+    return *x;
+}
 
 Lval& Lval::lval_err(string fmt, ...) {
     NewLval;
@@ -621,6 +694,15 @@ Lval& Lval::lval_lambda(Lval& formals, Lval& body) {
     lval.env = &Lenv::New_Lenv();
     return lval;
 }
+Lval& Lval::lval_check_string(const string str) {
+    return lval_string(str);
+}
+Lval& Lval::lval_string(const string str) {
+    NewLval;
+    lval->type = LVAL_TYPE_STR;
+    lval->str = str;
+    return *lval;
+}
 
 char* Lval::lval_type2name(LVAL_TYPE type) {
     switch (type) {
@@ -630,6 +712,7 @@ char* Lval::lval_type2name(LVAL_TYPE type) {
         case LVAL_TYPE_SEXPR:   return "SEXPR";
         case LVAL_TYPE_QEXPR:   return "QEXPR";
         case LVAL_TYPE_FUNC:    return "Function";
+        case LVAL_TYPE_STR:     return "String";
         default: "Unknown Type: " + type;
     }
 }

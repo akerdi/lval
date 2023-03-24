@@ -3,8 +3,8 @@
 Using cpp implete lisp.
 
 ## 目标
-- [ ] Library
-- [ ] String/Load file
+
+- [x] String/Load file
 - [x] Order/Compare/If
 - [x] Function
 - [x] Env

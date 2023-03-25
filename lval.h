@@ -1,7 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include <vector>
+#include <deque>
 
 #include "config.h"
 
@@ -22,13 +22,13 @@ typedef enum {
 class Lenv;
 class Lval {
 public:
-    typedef std::vector<Lval*> Lvalv;
+    typedef std::deque<Lval*> Lvaldq;
     typedef Lval&(Lval::*Lval_Func)(Lenv&, Lval&);
     LVAL_TYPE type;
     std::string error;
     std::string symbol;
     int num;
-    Lvalv* cells;
+    Lvaldq* cells;
     Lval_Func func;
 
     Lenv* env;
@@ -38,6 +38,7 @@ public:
 
     Lval& lval_add(Lval&);
     Lval& lval_pop(uint32_t);
+    Lval& lval_pop_front();
     Lval& lval_take(uint32_t);
     Lval& lval_copy();
     Lval& lval_eval(Lenv&);

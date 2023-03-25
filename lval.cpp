@@ -45,8 +45,8 @@ Lval& lval_fast_copy(const Lval& from, Lval& to) {
             break;
         case LVAL_TYPE_QEXPR:
         case LVAL_TYPE_SEXPR: {
-            to.cells = new Lval::Lvalv;
-            for (Lval::Lvalv::iterator it = from.cells->begin(); it != from.cells->end(); it++) {
+            to.cells = new Lval::Lvaldq;
+            for (Lval::Lvaldq::iterator it = from.cells->begin(); it != from.cells->end(); it++) {
                 Lval& lval = Lval::lval_sym("");
                 lval_fast_copy(*(*it), lval);
                 to.lval_add(lval);
@@ -66,6 +66,11 @@ Lval& Lval::lval_add(Lval& a) {
 Lval& Lval::lval_pop(uint32_t index) {
     Lval* node = cells->at(index);
     cells->erase(cells->begin()+index);
+    return *node;
+}
+Lval& Lval::lval_pop_front() {
+    Lval* node = cells->front();
+    cells->pop_front();
     return *node;
 }
 Lval& Lval::lval_take(uint32_t index) {
@@ -89,8 +94,8 @@ bool Lval::operator==(const Lval& other) {
             } else {
                 if (formals->cells->size() != other.formals->cells->size()) return false;
                 if (body->cells->size() != other.cells->size()) return false;
-                Lvalv::iterator this_it = formals->cells->begin();
-                Lvalv::iterator other_it = other.formals->cells->begin();
+                Lvaldq::iterator this_it = formals->cells->begin();
+                Lvaldq::iterator other_it = other.formals->cells->begin();
                 Lval *thisObj, *otherObj;
                 for (int i = 0; i < formals->cells->size(); i++) {
                     thisObj = *(this_it + i);
@@ -110,8 +115,8 @@ bool Lval::operator==(const Lval& other) {
         case LVAL_TYPE_QEXPR:
         case LVAL_TYPE_SEXPR: {
             if (cells->size() != other.cells->size()) return false;
-            Lvalv::iterator this_it = cells->begin();
-            Lvalv::iterator other_it = other.cells->begin();
+            Lvaldq::iterator this_it = cells->begin();
+            Lvaldq::iterator other_it = other.cells->begin();
             Lval *thisObj, *otherObj;
             for (int i = 0; i < cells->size(); i++) {
                 thisObj = *(this_it + i);
@@ -127,7 +132,7 @@ bool Lval::operator==(const Lval& other) {
 }
 
 Lval& Lval::buildin_op(Lenv&, string op) {
-    for (Lvalv::iterator it = cells->begin(); it != cells->end(); it++) {
+    for (Lvaldq::iterator it = cells->begin(); it != cells->end(); it++) {
         if (LVAL_TYPE_NUM != (*it)->type) {
             Lval& err = Lval::lval_err(
                 "Operation must be number! Expect %s, got %s!",
@@ -234,7 +239,7 @@ Lval& Lval::buildin_var(Lenv& env, Lval& expr, string op) {
     LVAL_ASSERT_TYPE(op.c_str(), (expr), 0, LVAL_TYPE_QEXPR);
     LVAL_ASSERT_NOT_EMPTY(op.c_str(), (expr), 0);
     Lval* qexpr = expr.cells->at(0);
-    Lval::Lvalv::iterator qit = qexpr->cells->begin();
+    Lval::Lvaldq::iterator qit = qexpr->cells->begin();
     for (int i = 0; i < qexpr->cells->size(); i++) {
         Lval* node = *(qit+i);
         if (LVAL_TYPE_SYM != node->type) {
@@ -252,7 +257,7 @@ Lval& Lval::buildin_var(Lenv& env, Lval& expr, string op) {
         (expr.cells->size()-1));
 
     qit = qexpr->cells->begin();
-    Lval::Lvalv::iterator sit = expr.cells->begin()+1;
+    Lval::Lvaldq::iterator sit = ++expr.cells->begin();
     for (int i = 0; i < qexpr->cells->size(); i++) {
         Lval* keyVal = *(qit+i);
         Lval& valVal = (*(sit+i))->lval_copy();
@@ -362,7 +367,7 @@ Lval& Lval::buildin_if(Lenv& env, Lval& expr) {
     return *res;
 }
 Lval& Lval::buildin_print(Lenv& env, Lval& expr) {
-    Lvalv::iterator it = expr.cells->begin();
+    Lvaldq::iterator it = expr.cells->begin();
     int cell_size = expr.cells->size();
     for (int i = 0; i < cell_size; i++) {
         Lval* aptr = *(it+i);
@@ -380,7 +385,7 @@ Lval& Lval::buildin_load(Lenv& env, Lval& expr) {
     LVAL_ASSERT_NUM("load", expr, 1);
     LVAL_ASSERT_TYPE("load", expr, 0, LVAL_TYPE_STR);
 
-    Lval* strVal = expr.cells->at(0);
+    Lval* strVal = expr.cells->front();
     AStruct& program = AKCompiler::loadfile(strVal->str);
     expr.lval_delete();
     if (Ast_Type_Error == program.type) {
@@ -392,8 +397,7 @@ Lval& Lval::buildin_load(Lenv& env, Lval& expr) {
         Lval* expr;
         Lval* res;
         while (sexpr.cells->size()) {
-            expr = sexpr.cells->at(0);
-            sexpr.cells->erase(sexpr.cells->begin());
+            expr = &sexpr.lval_pop_front();
             res = &expr->lval_eval(env);
             if (LVAL_TYPE_ERR == res->type) {
                 res->lval_print();
@@ -415,45 +419,40 @@ Lval& Lval::lval_call(Lenv& env, Lval& op) {
     }
     int args_count = op.formals->cells->size();
     int params_count = cells->size();
-    int i = 0;
-    while (i != params_count) {
+    while (cells->size()) {
         if (!op.formals->cells->size()) {
             this->lval_delete();
             return Lval::lval_err("Function '%s' pass params too much to args. Params %d, Args %d", "call", params_count, args_count);
         }
-        Lval* keyVal = op.formals->cells->at(i);
+        Lval* keyVal = &op.formals->lval_pop_front();
         if ("&" == keyVal->symbol) {
-            if (2 != args_count-i) {
+            if (1 != op.formals->cells->size()) {
                 this->lval_delete();
                 return Lval::lval_err("Function '%s' symbol '&' must follow only one symbol!", "call");
             }
-            keyVal = op.formals->cells->at(++i);
+            keyVal = &op.formals->lval_pop_front();
             Lval& qexpr = Lval::lval_qexpr();
-            Lvalv::iterator it = cells->begin() + i;
+            Lvaldq::iterator it = cells->begin();
             while (it != cells->end()) {
                 qexpr.lval_add((*it)->lval_copy());
                 it++;
             }
             op.env->lenv_put(keyVal->symbol, qexpr);
-            i = args_count;
             break;
         }
-        Lval* valVal = cells->at(i);
-        op.env->lenv_put(keyVal->symbol, valVal->lval_copy());
-        i++;
+        Lval& valVal = lval_pop_front();
+        op.env->lenv_put(keyVal->symbol, valVal.lval_copy());
     }
     this->lval_delete();
-    if ((2 == args_count-i) && ("&" == op.formals->cells->at(i)->symbol)) {
-        Lval* keyVal = op.formals->cells->at(i+1);
+    if ((2 == op.formals->cells->size()) && ("&" == op.formals->cells->at(0)->symbol)) {
+        op.formals->lval_pop(0).lval_delete();
+
+        Lval& keyVal = op.formals->lval_pop(0);
         Lval& emptyList = Lval::lval_qexpr();
-        op.env->lenv_put(keyVal->symbol, emptyList);
-        i = args_count;
+        op.env->lenv_put(keyVal.symbol, emptyList);
     }
-    // cut used args
-    Lvalv::iterator it = op.formals->cells->begin();
-    op.formals->cells->erase(it, it+i);
     // args had fully used
-    if (i >= args_count) {
+    if (!op.formals->cells->size()) {
         op.env->parent = &env;
         Lval& sexpr = Lval::lval_sexpr();
         sexpr.lval_add(op.body->lval_copy());
@@ -463,7 +462,7 @@ Lval& Lval::lval_call(Lenv& env, Lval& op) {
     return op.lval_copy();
 }
 Lval& Lval::lval_expr_eval(Lenv& env) {
-    Lvalv::iterator it;
+    Lvaldq::iterator it;
     for (it = cells->begin(); it != cells->end(); it++) {
         Lval* node = *it;
         *it = &(node->lval_eval(env));
@@ -514,7 +513,7 @@ Lval& Lval::lval_eval(Lenv& env) {
 
 void Lval::lval_expr_print(char open, char close) {
     putchar(open);
-    for (Lvalv::iterator it = cells->begin(); it != cells->end();) {
+    for (Lvaldq::iterator it = cells->begin(); it != cells->end();) {
         Lval*node = *it;
         node->lval_print();
         it++;
@@ -554,7 +553,7 @@ void Lval::lval_print() {
                 putchar(' ');
                 putchar('{');
                 int i, size;
-                Lvalv::iterator it;
+                Lvaldq::iterator it;
 
                 i = 0; size = formals->cells->size(); it = formals->cells->begin();
                 for (; i < size; i++) {
@@ -586,7 +585,7 @@ void Lval::lval_println() {
 }
 
 void Lval::lval_expr_delete() {
-    for (Lvalv::iterator it = cells->begin(); it != cells->end(); it++) {
+    for (Lvaldq::iterator it = cells->begin(); it != cells->end(); it++) {
         Lval* node = *it;
         node->lval_delete();
     }
@@ -673,7 +672,7 @@ Lval& Lval::lval_num(int num) {
 Lval& Lval::lval_sexpr(void) {
     NewLval;
     lval->type = LVAL_TYPE_SEXPR;
-    lval->cells = new Lvalv;
+    lval->cells = new Lvaldq;
     return *lval;
 }
 Lval& Lval::lval_qexpr(void) {

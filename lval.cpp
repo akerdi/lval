@@ -73,6 +73,11 @@ Lval& Lval::lval_pop_front() {
     cells->pop_front();
     return *node;
 }
+Lval& Lval::lval_pop_back() {
+    Lval* node = cells->back();
+    cells->pop_back();
+    return *node;
+}
 Lval& Lval::lval_take(uint32_t index) {
     Lval& node = lval_pop(index);
     cells->clear();
@@ -174,10 +179,10 @@ Lval& Lval::buildin_head(Lenv& env, Lval& expr) {
     Lval& node = expr.lval_take(0);
     expr.lval_delete();
 
-    Lval& res = node.lval_take(0);
-    node.lval_delete();
-
-    return res;
+    while (node.cells->size() > 1) {
+        node.lval_pop_back().lval_delete();
+    }
+    return node;
 }
 Lval& Lval::buildin_tail(Lenv& env, Lval& expr) {
     LVAL_ASSERT_NUM("tail", (expr), 1);
@@ -187,8 +192,7 @@ Lval& Lval::buildin_tail(Lenv& env, Lval& expr) {
     Lval& node = expr.lval_take(0);
     expr.lval_delete();
 
-    Lval& res = node.lval_pop(0);
-    res.lval_delete();
+    if (node.cells->size() > 1) node.lval_pop_front().lval_delete();
 
     return node;
 }
@@ -389,8 +393,9 @@ Lval& Lval::buildin_load(Lenv& env, Lval& expr) {
     AStruct& program = AKCompiler::loadfile(strVal->str);
     expr.lval_delete();
     if (Ast_Type_Error == program.type) {
+        Lval& err = Lval::lval_err(program.error);
         program.deleteNode();
-        return Lval::lval_err(program.error);
+        return err;
     } else {
         Lval& sexpr = Lval::readAst(program);
         program.deleteNode();
@@ -581,7 +586,7 @@ void Lval::lval_print() {
 }
 void Lval::lval_println() {
     lval_print();
-    putchar('\n');
+    cout << endl;
 }
 
 void Lval::lval_expr_delete() {

@@ -39,6 +39,7 @@ public:
     Lval& lval_add(Lval&);
     Lval& lval_pop(uint32_t);
     Lval& lval_pop_front();
+    Lval& lval_pop_back();
     Lval& lval_take(uint32_t);
     Lval& lval_copy();
     Lval& lval_eval(Lenv&);

@@ -4,17 +4,32 @@ Using cpp implete lisp.
 
 ## Usage
 
-force lval to be a library:
+Force lval to be a library:
 
 `CMake Option: LVAL_LIB_MODE`
 
     ON: Library Mode
     OFF: Test Mode
 
+Add Lval as submodule to your project:
+
+    git submodule add git@github.com:akerdi/cpplispy.git lval --recursive
+
+Start:
+
 ```cpp
+// foo.cpp
 #include <lval.h>
 Lval::quick_start();
 ```
+
+## Problem
+
+When add Lval as a submodule, error(`/lval/lval.h:6:10: fatal error: 'compiler.h' file not found`) will happen, below is the right way to treat:
+
+CMakeLists.txt add submodule(compiler) directory:
+
+    include_directories("${PROJECT_SOURCE_DIR}/lval/compiler")
 
 ## Goal
 

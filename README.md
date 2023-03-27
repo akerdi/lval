@@ -1,6 +1,10 @@
-# CPPLispy
+# Lval
 
-Using cpp implete lisp.
+Lval support minimalistic language for lisp.
+
+Recommand using CMake to add `Lval` as a submodule.
+
+[Supported Lisp Basic Script Usage](./compiler/foo.cpp), more usage please read `lib.lsp`.
 
 ## Usage
 
@@ -13,7 +17,7 @@ Force lval to be a library:
 
 Add Lval as submodule to your project:
 
-    git submodule add git@github.com:akerdi/cpplispy.git lval --recursive
+    git submodule add git@github.com:akerdi/lval.git lval --recursive
 
 Start:
 
@@ -21,6 +25,12 @@ Start:
 // foo.cpp
 #include <lval.h>
 Lval::quick_start();
+```
+
+use `lib.lsp`:
+
+```lisp
+> load "lib.lsp"
 ```
 
 ## Problem

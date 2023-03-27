@@ -2,7 +2,21 @@
 
 Using cpp implete lisp.
 
-## 目标
+## Usage
+
+force lval to be a library:
+
+`CMake Option: LVAL_LIB_MODE`
+
+    ON: Library Mode
+    OFF: Test Mode
+
+```cpp
+#include <lval.h>
+Lval::quick_start();
+```
+
+## Goal
 
 - [x] Library
 - [x] String/Load file
@@ -18,7 +32,7 @@ Using cpp implete lisp.
 ## TODO
 
 - [ ] aoto gc instead lval_delete
-- [ ] lval to be library
+- [x] lval to be library
 - [x] Lval.cell use deque instead
 
 ## Contact me

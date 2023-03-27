@@ -3,11 +3,7 @@
 #include <iostream>
 #include <deque>
 
-#include "config.h"
-
-#ifdef USE_MY_COMPILER
 #include <compiler.h>
-#endif
 
 typedef enum {
     LVAL_TYPE_ERR,
@@ -71,6 +67,7 @@ public:
 
     bool operator==(const Lval&);
 
+    static void quick_start(void);
     static Lval& readAst(AStruct& t);
     static Lval& lval_err(std::string, ...);
     static Lval& lval_sym(std::string);

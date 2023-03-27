@@ -5,6 +5,7 @@ using namespace std;
 
 #include "lval.h"
 #include "lenv.h"
+#include "config.h"
 
 #define NewLval Lval* lval = new Lval
 #define LVAL_ASSERT(x, that, ...) if (!(x)) { Lval& err = Lval::lval_err(__VA_ARGS__); that.lval_delete(); return err; }
@@ -623,6 +624,40 @@ void Lval::lval_delete() {
 }
 
 #pragma mark - Static
+
+void readline(string& input) {
+    getline(cin, input);
+}
+
+void Lval::quick_start(void) {
+    printf("LVAL VERSION: %d.%d\n", APP_VERSION_MAJOR, APP_VERSION_MINOR);
+#ifdef COMPILER_LIB_MODE
+    Lenv& env = Lenv::New_Lenv();
+    env.init_buildins();
+    while (true) {
+        cout << "> ";
+        string input;
+        readline(input);
+        AStruct &program = AKCompiler::compiler(input);
+        if (Ast_Type_Error == program.type) {
+            program.print();
+            program.deleteNode();
+            continue;
+        }
+        Lval& expr = Lval::readAst(program);
+        program.deleteNode();
+
+        Lval& res = expr.lval_eval(env);
+
+        res.lval_println();
+        res.lval_delete();
+    }
+    env.lenv_delete();
+#else
+    printf("not implement compiler yet!\n");
+    return 1;
+#endif
+}
 
 Lval& Lval::readAst(AStruct& t) {
     if (Ast_Type_Number == t.type) return Lval::lval_check_num(t.content);

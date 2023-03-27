@@ -5,7 +5,7 @@ set(APP_VERSION_MAJOR 1)
 set(APP_VERSION_MINOR 1)
 
 option(COMPILER_LIB_MODE
-    "Use to provide COMPILER implementation" OFF)
+    "Use to provide COMPILER implementation" ON)
 option(LVAL_LIB_MODE
     "Use to provide LVAL implementation" ON)
 

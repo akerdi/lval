@@ -19,6 +19,8 @@ Add Lval as submodule to your project:
 
     git submodule add git@github.com:akerdi/lval.git lval --recursive
 
+you can refer to  [CMakeLists.txt.demo](./CMakeLists.txt.demo)
+
 Start:
 
 ```cpp

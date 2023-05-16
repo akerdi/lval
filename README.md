@@ -1,6 +1,6 @@
 # Lval
 
-Lval support minimalistic language for lisp.
+Lval provides minimalistic language interpretation support for Lisp.
 
 Recommand using CMake to add `Lval` as a submodule.
 
